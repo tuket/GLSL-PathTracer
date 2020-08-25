@@ -105,10 +105,15 @@ namespace GLSLPT
         glGenTextures(1, &pathTraceTexture);
         glBindTexture(GL_TEXTURE_2D, pathTraceTexture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, tileWidth, tileHeight, 0, GL_RGBA, GL_FLOAT, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glBindTexture(GL_TEXTURE_2D, 0);
+
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pathTraceTexture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, randTex, 0);
+        GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+        glDrawBuffers(2, attachments);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         //Create FBOs for path trace shader (Progressive)
         printf("Buffer pathTraceFBOLowRes\n");
@@ -125,6 +130,7 @@ namespace GLSLPT
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glBindTexture(GL_TEXTURE_2D, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pathTraceTextureLowRes, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         //Create FBOs for accum buffer
         printf("Buffer accumFBO\n");
@@ -135,10 +141,11 @@ namespace GLSLPT
         glGenTextures(1, &accumTexture);
         glBindTexture(GL_TEXTURE_2D, accumTexture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, GLsizei(screenSize.x), GLsizei(screenSize.y), 0, GL_RGBA, GL_FLOAT, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glBindTexture(GL_TEXTURE_2D, 0);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, accumTexture, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         //Create FBOs for tile output shader
         printf("Buffer outputFBO\n");
@@ -149,18 +156,19 @@ namespace GLSLPT
         glGenTextures(1, &tileOutputTexture[0]);
         glBindTexture(GL_TEXTURE_2D, tileOutputTexture[0]);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenSize.x, screenSize.y, 0, GL_RGBA, GL_FLOAT, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glBindTexture(GL_TEXTURE_2D, 0);
 
         glGenTextures(1, &tileOutputTexture[1]);
         glBindTexture(GL_TEXTURE_2D, tileOutputTexture[1]);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenSize.x, screenSize.y, 0, GL_RGBA, GL_FLOAT, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glBindTexture(GL_TEXTURE_2D, 0);
 
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tileOutputTexture[currentBuffer], 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         GLuint shaderObject;
 
@@ -188,6 +196,7 @@ namespace GLSLPT
         glUniform1i(glGetUniformLocation(shaderObject, "hdrTex"), 11);
         glUniform1i(glGetUniformLocation(shaderObject, "hdrMarginalDistTex"), 12);
         glUniform1i(glGetUniformLocation(shaderObject, "hdrCondDistTex"), 13);
+        glUniform1i(glGetUniformLocation(shaderObject, "randTex"), 14);
 
         pathTraceShader->StopUsing();
 
@@ -213,6 +222,7 @@ namespace GLSLPT
         glUniform1i(glGetUniformLocation(shaderObject, "hdrTex"), 11);
         glUniform1i(glGetUniformLocation(shaderObject, "hdrMarginalDistTex"), 12);
         glUniform1i(glGetUniformLocation(shaderObject, "hdrCondDistTex"), 13);
+        glUniform1i(glGetUniformLocation(shaderObject, "randTex"), 14);
 
         pathTraceShaderLowRes->StopUsing();
 
@@ -242,6 +252,8 @@ namespace GLSLPT
         glBindTexture(GL_TEXTURE_2D, hdrMarginalDistTex);
         glActiveTexture(GL_TEXTURE13);
         glBindTexture(GL_TEXTURE_2D, hdrConditionalDistTex);
+        glActiveTexture(GL_TEXTURE14);
+        glBindTexture(GL_TEXTURE_2D, randTex);
     }
 
     void TiledRenderer::Finish()
@@ -356,11 +368,8 @@ namespace GLSLPT
     {
         Renderer::Update(secondsElapsed);
 
-        float r1, r2, r3;
-
         if (scene->camera->isMoving || scene->instancesModified)
         {
-            r1 = r2 = r3 = 0;
             tileX = -1;
             tileY = numTilesY - 1;
             sampleCounter = 1;
@@ -399,10 +408,6 @@ namespace GLSLPT
                     currentBuffer = 1 - currentBuffer;
                 }
             }
-
-            r1 = ((float)rand() / (RAND_MAX));
-            r2 = ((float)rand() / (RAND_MAX));
-            r3 = ((float)rand() / (RAND_MAX));
         }
 
 
@@ -417,7 +422,6 @@ namespace GLSLPT
         glUniform1f(glGetUniformLocation(shaderObject, "camera.fov"), scene->camera->fov);
         glUniform1f(glGetUniformLocation(shaderObject, "camera.focalDist"), scene->camera->focalDist);
         glUniform1f(glGetUniformLocation(shaderObject, "camera.aperture"), scene->camera->aperture);
-        glUniform3f(glGetUniformLocation(shaderObject, "randomVector"), r1, r2, r3);
         glUniform1i(glGetUniformLocation(shaderObject, "useEnvMap"), scene->hdrData == nullptr ? false : scene->renderOptions.useEnvMap);
         glUniform1f(glGetUniformLocation(shaderObject, "hdrMultiplier"), scene->renderOptions.hdrMultiplier);
         glUniform1i(glGetUniformLocation(shaderObject, "maxDepth"), scene->camera->isMoving || scene->instancesModified ? 2 : scene->renderOptions.maxDepth);

@@ -51,7 +51,7 @@ in vec2 TexCoords;
 
 void main(void)
 {
-    seed = gl_FragCoord.xy/screenResolution.xy;
+    seed = texture(randTex, TexCoords);
 
     float r1 = 2.0 * rand();
     float r2 = 2.0 * rand();

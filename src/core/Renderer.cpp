@@ -33,6 +33,22 @@
 
 namespace GLSLPT
 {
+    namespace XORShift
+    {
+        // XOR shift PRNG
+        static unsigned int x = 123456789;
+        static unsigned int y = 362436069;
+        static unsigned int z = 521288629;
+        static unsigned int w = 88675123;
+
+        inline float frand()
+        {
+            const unsigned int t = x ^ (x << 11);
+            x = y; y = z; z = w;
+            return (w = (w ^ (w >> 19)) ^ (t ^ (t >> 8))) * (1.0f / 4294967295.0f);
+        }
+    }
+
     Program *LoadShaders(const std::string& vertShaderFilename, const std::string& fragShaderFilename)
     {
         std::vector<Shader> shaders;
@@ -90,6 +106,7 @@ namespace GLSLPT
         glDeleteTextures(1, &hdrTex);
         glDeleteTextures(1, &hdrMarginalDistTex);
         glDeleteTextures(1, &hdrConditionalDistTex);
+        glDeleteTextures(1, &randTex);
 
         initialized = false;
         printf("Renderer finished!\n");
@@ -107,6 +124,22 @@ namespace GLSLPT
         }
 
         quad = new Quad();
+
+        //Create texture for rand numbers
+        glGenTextures(1, &randTex);
+        glBindTexture(GL_TEXTURE_2D, randTex);
+        randData.resize(screenSize.x * screenSize.y);
+        for (int j = 0; j < screenSize.y; j++)
+        {
+            for (int i = 0; i < screenSize.x; i++)
+            {
+                randData[i + j * screenSize.x] = Vec4(XORShift::frand() * 4194304.0, XORShift::frand() * 4194304.0, XORShift::frand() * 4194304.0, XORShift::frand() * 4194304.0);
+            }
+        }
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenSize.x, screenSize.y, 0, GL_RGBA, GL_FLOAT, &randData[0]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         //Create texture for BVH Tree
         glGenTextures(1, &BVHTex);

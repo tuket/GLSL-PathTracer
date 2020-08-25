@@ -36,7 +36,9 @@ precision highp samplerCube;
 precision highp isampler2D;
 precision highp sampler2DArray;
 
-out vec3 color;
+
+layout(location = 0) out vec4 colorOut;
+layout(location = 1) out vec4 randOut;
 in vec2 TexCoords;
 
 #include common/uniforms.glsl
@@ -56,11 +58,6 @@ float map(float value, float low1, float high1, float low2, float high2)
 
 void main(void)
 {
-    seed = gl_FragCoord.xy/screenResolution.xy;
-
-    float r1 = 2.0 * rand();
-    float r2 = 2.0 * rand();
-
     vec2 coords = TexCoords;
 
     float xoffset = -1.0 + 2.0 * invNumTilesX * float(tileX);
@@ -68,6 +65,11 @@ void main(void)
 
     coords.x = map(coords.x, 0.0, 1.0, xoffset, xoffset + 2.0 * invNumTilesX);
     coords.y = map(coords.y, 0.0, 1.0, yoffset, yoffset + 2.0 * invNumTilesY);
+
+    seed = texture(randTex, coords * vec2(0.5f) + vec2(0.5f));
+
+    float r1 = 2.0 * rand();
+    float r2 = 2.0 * rand();
 
     vec2 jitter;
     jitter.x = r1 < 1.0 ? sqrt(r1) - 1.0 : 1.0 - sqrt(2.0 - r1);
@@ -99,5 +101,6 @@ void main(void)
 
     vec3 pixelColor = PathTrace(ray);
 
-    color = pixelColor + accumColor;
+    colorOut = vec4(pixelColor + accumColor, 1.0f);
+    randOut = seed;
 }

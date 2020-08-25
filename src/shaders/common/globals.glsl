@@ -36,7 +36,7 @@
 
 mat4 transform;
 
-vec2 seed;
+vec4 seed;
 vec3 tempTexCoords;
 struct Ray { vec3 origin; vec3 direction; };
 struct Material { vec4 albedo; vec4 emission; vec4 param; vec4 texIDs; };
@@ -48,10 +48,17 @@ struct LightSampleRec { vec3 surfacePos; vec3 normal; vec3 emission; float pdf; 
 
 uniform Camera camera;
 
-//-----------------------------------------------------------------------
 float rand()
-//-----------------------------------------------------------------------
 {
-    seed -= randomVector.xy;
-    return fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453);
+	const vec4 q = vec4(1225.0, 1585.0, 2457.0, 2098.0);
+	const vec4 r = vec4(1112.0, 367.0, 92.0, 265.0);
+	const vec4 a = vec4(3423.0, 2646.0, 1707.0, 1999.0);
+	const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+
+	vec4 beta = floor(seed / q);
+	vec4 p = a * (seed - beta * q) - beta * r;
+	beta = (sign(-p) + vec4(1.0)) * vec4(0.5) * m;
+	seed = (p + beta);
+
+	return fract(dot(seed / m, vec4(1.0, -1.0, 1.0, -1.0)));
 }

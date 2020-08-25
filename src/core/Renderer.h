@@ -31,7 +31,8 @@
 
 #include "Quad.h"
 #include "Program.h"
-#include <Vec2.h>
+#include "Vec2.h"
+#include "Vec4.h"
 
 #include <vector>
 
@@ -65,6 +66,7 @@ namespace GLSLPT
     protected:
         Scene *scene;
         Quad* quad;
+        std::vector<Vec4> randData;
 
         iVec2 screenSize;
         std::string shadersDirectory;
@@ -82,6 +84,7 @@ namespace GLSLPT
         GLuint hdrTex;
         GLuint hdrMarginalDistTex;
         GLuint hdrConditionalDistTex;
+        GLuint randTex;
 
         int numOfLights;
         bool initialized;
